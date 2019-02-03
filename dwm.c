@@ -44,6 +44,11 @@
 #include "drw.h"
 #include "util.h"
 
+/* X11 defines Button{4,5} (scroll up/down) but doesn't define
+ * Button{6,7} (scroll left/right) in header file for some reason */
+#define Button6 6
+#define Button7 7
+
 /* macros */
 #define BUTTONMASK              (ButtonPressMask|ButtonReleaseMask)
 #define CLEANMASK(mask)         (mask & ~(numlockmask|LockMask) & (ShiftMask|ControlMask|Mod1Mask|Mod2Mask|Mod3Mask|Mod4Mask|Mod5Mask))
@@ -492,7 +497,9 @@ buttonpress(XEvent *e)
 
 	click = ClkRootWin;
 	/* focus monitor if necessary */
-	if ((m = wintomon(ev->window)) && m != selmon) {
+	if ((m = wintomon(ev->window)) && m != selmon &&
+	    (focusonwheel || (ev->button != Button4 && ev->button != Button5 &&
+	                      ev->button != Button6 && ev->button != Button7))) {
 		unfocus(selmon->sel, 1);
 		selmon = m;
 		focus(NULL);
@@ -512,7 +519,9 @@ buttonpress(XEvent *e)
 		else
 			click = ClkWinTitle;
 	} else if ((c = wintoclient(ev->window))) {
-		focus(c);
+		if (focusonwheel || (ev->button != Button4 && ev->button != Button5 &&
+	                             ev->button != Button6 && ev->button != Button7))
+			focus(c);
 		restack(selmon);
 		XAllowEvents(dpy, ReplayPointer, CurrentTime);
 		click = ClkClientWin;
@@ -942,6 +951,9 @@ enternotify(XEvent *e)
 	Monitor *m;
 	XCrossingEvent *ev = &e->xcrossing;
 
+	if (!focusonmove)
+		return;
+
 	if ((ev->mode != NotifyNormal || ev->detail == NotifyInferior) && ev->window != root)
 		return;
 	c = wintoclient(ev->window);
@@ -1321,6 +1333,9 @@ motionnotify(XEvent *e)
 	static Monitor *mon = NULL;
 	Monitor *m;
 	XMotionEvent *ev = &e->xmotion;
+
+	if (!focusonmove)
+		return;
 
 	if (ev->window != root)
 		return;
