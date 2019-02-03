@@ -44,6 +44,7 @@ static const int resizehints = 1;    /* 1 means respect size hints in tiled resi
 static const int decorhints  = 0;    /* 1 means respect decoration hints */
 static const int tiledraise  = 0;    /* 1 means raise tiled windows when focused */
 static const int restorefloat = 0;   /* 1 means restore window's last position after togglefloating */
+static const int pertag      = 0;    /* 1 means set workspace setup per tag */
 
 static const Layout layouts[] = {
 	/* symbol     arrange function */

@@ -141,6 +141,15 @@ typedef struct {
 	void (*arrange)(Monitor *);
 } Layout;
 
+typedef struct {
+	const Layout *lt[2];
+	float mfact;
+	unsigned int sellt;
+	int nmaster;
+	int showbar;
+	int topbar;
+} Workspace;
+
 struct Monitor {
 	char ltsymbol[16];
 	float mfact;
@@ -160,6 +169,8 @@ struct Monitor {
 	Monitor *next;
 	Window barwin;
 	const Layout *lt[2];
+	Workspace *w;
+	unsigned int selw, oldw;
 };
 
 typedef struct {
@@ -242,6 +253,8 @@ static void setlayout(const Arg *arg);
 static void setmfact(const Arg *arg);
 static void setup(void);
 static void seturgent(Client *c, int urg);
+static void setworkspace(Monitor *mon, unsigned int w);
+static void syncworkspace(Monitor *mon);
 static void showhide(Client *c);
 static void sigchld(int unused);
 static void spawn(const Arg *arg);
@@ -597,6 +610,7 @@ cleanupmon(Monitor *mon)
 	}
 	XUnmapWindow(dpy, mon->barwin);
 	XDestroyWindow(dpy, mon->barwin);
+	free(mon->w);
 	free(mon);
 }
 
@@ -742,6 +756,13 @@ createmon(void)
 	m->lt[0] = &layouts[0];
 	m->lt[1] = &layouts[1 % LENGTH(layouts)];
 	strncpy(m->ltsymbol, layouts[0].symbol, sizeof m->ltsymbol);
+
+	m->w = ecalloc(LENGTH(tags), sizeof(Workspace));
+	for (m->selw = 0; m->selw < LENGTH(tags); m->selw++) {
+		syncworkspace(m);
+	}
+	m->selw = m->oldw = 0;
+
 	return m;
 }
 
@@ -1180,6 +1201,7 @@ void
 incnmaster(const Arg *arg)
 {
 	selmon->nmaster = MAX(selmon->nmaster + arg->i, 0);
+	syncworkspace(selmon);
 	arrange(selmon);
 }
 
@@ -1784,6 +1806,7 @@ setlayout(const Arg *arg)
 	if (arg && arg->v)
 		selmon->lt[selmon->sellt] = (Layout *)arg->v;
 	strncpy(selmon->ltsymbol, selmon->lt[selmon->sellt]->symbol, sizeof selmon->ltsymbol);
+	syncworkspace(selmon);
 	if (selmon->sel)
 		arrange(selmon);
 	else
@@ -1802,6 +1825,7 @@ setmfact(const Arg *arg)
 	if (f < 0.1 || f > 0.9)
 		return;
 	selmon->mfact = f;
+	syncworkspace(selmon);
 	arrange(selmon);
 }
 
@@ -1900,6 +1924,39 @@ seturgent(Client *c, int urg)
 }
 
 void
+setworkspace(Monitor *mon, unsigned int w)
+{
+	if (!pertag)
+		return;
+
+	mon->sellt = mon->w[w].sellt;
+	mon->lt[0] = mon->w[w].lt[0];
+	mon->lt[1] = mon->w[w].lt[1];
+	mon->showbar = mon->w[w].showbar;
+	mon->topbar = mon->w[w].topbar;
+	mon->mfact = mon->w[w].mfact;
+	mon->nmaster = mon->w[w].nmaster;
+
+	mon->oldw = mon->selw;
+	mon->selw = w;
+
+	updatebarpos(mon);
+	XMoveResizeWindow(dpy, mon->barwin, mon->wx, mon->by, mon->ww, bh);
+}
+
+void
+syncworkspace(Monitor *mon)
+{
+	mon->w[mon->selw].sellt = mon->sellt;
+	mon->w[mon->selw].lt[0] = mon->lt[0];
+	mon->w[mon->selw].lt[1] = mon->lt[1];
+	mon->w[mon->selw].showbar = mon->showbar;
+	mon->w[mon->selw].topbar = mon->topbar;
+	mon->w[mon->selw].mfact = mon->mfact;
+	mon->w[mon->selw].nmaster = mon->nmaster;
+}
+
+void
 showhide(Client *c)
 {
 	if (!c)
@@ -1992,6 +2049,7 @@ void
 togglebar(const Arg *arg)
 {
 	selmon->showbar = !selmon->showbar;
+	syncworkspace(selmon);
 	updatebarpos(selmon);
 	XMoveResizeWindow(dpy, selmon->barwin, selmon->wx, selmon->by, selmon->ww, bh);
 	arrange(selmon);
@@ -2043,9 +2101,14 @@ void
 toggleview(const Arg *arg)
 {
 	unsigned int newtagset = selmon->tagset[selmon->seltags] ^ (arg->ui & TAGMASK);
+	unsigned int i;
 
 	if (newtagset) {
 		selmon->tagset[selmon->seltags] = newtagset;
+		if ((newtagset & (1 << selmon->selw)) == 0) {
+			for (i = 0; (newtagset & (1 << i)) == 0; i++);
+			setworkspace(selmon, i);
+		}
 		focus(NULL);
 		arrange(selmon);
 	}
@@ -2451,11 +2514,18 @@ updatewmhints(Client *c)
 void
 view(const Arg *arg)
 {
+	unsigned int i;
+
 	if ((arg->ui & TAGMASK) == selmon->tagset[selmon->seltags])
 		return;
 	selmon->seltags ^= 1; /* toggle sel tagset */
-	if (arg->ui & TAGMASK)
+	if (arg->ui & TAGMASK) {
 		selmon->tagset[selmon->seltags] = arg->ui & TAGMASK;
+		for (i = 0; (arg->ui & (1 << i)) == 0; i++);
+	} else {
+		i = selmon->oldw;
+	}
+	setworkspace(selmon, i);
 	focus(NULL);
 	arrange(selmon);
 }
