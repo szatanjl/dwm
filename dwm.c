@@ -236,6 +236,7 @@ static void maximize(const Arg *arg);
 static void monocle(Monitor *m);
 static void motionnotify(XEvent *e);
 static void movemouse(const Arg *arg);
+static void moveresize(const Arg *arg);
 static Client *nexttiled(Client *c);
 static void pop(Client *);
 static void propertynotify(XEvent *e);
@@ -1484,6 +1485,48 @@ movemouse(const Arg *arg)
 		sendmon(c, m);
 		selmon = m;
 		focus(NULL);
+	}
+}
+
+void
+moveresize(const Arg *arg)
+{
+	Client *c = selmon->sel;
+	int x = ((int*)arg->v)[0], y = ((int*)arg->v)[1];
+	int w = ((int*)arg->v)[2], h = ((int*)arg->v)[3];
+
+	int ox = c->x, oy = c->y, ow = c->w, oh = c->h;
+	int nx, ny, nw, nh;
+	int msx, msy, dx, dy, nmx, nmy;
+	unsigned int dui;
+	Window dummy;
+
+	/* only floating windows can be moved */
+	if (!c || !arg)
+		return;
+	if (selmon->lt[selmon->sellt]->arrange && !c->isfloating)
+		return;
+
+	/* compute new window position; prevent window from be positioned outside the current monitor */
+	nw = MIN(c->w + w, selmon->ww - 2 * c->bw);
+	nh = MIN(c->h + h, selmon->wh - 2 * c->bw);
+
+	nx = c->x + x;
+	nx = MAX(nx, selmon->wx);
+	nx = MIN(nx, selmon->wx + selmon->ww - nw - 2 * c->bw);
+
+	ny = c->y + y;
+	ny = MAX(ny, selmon->wy);
+	ny = MIN(ny, selmon->wy + selmon->wh - nh - 2 * c->bw);
+
+	resize(c, nx, ny, nw, nh, True);
+
+	/* move cursor along with the window to avoid problems caused by the sloppy focus */
+	Bool xqp = XQueryPointer(dpy, root, &dummy, &dummy, &msx, &msy, &dx, &dy, &dui);
+	if (xqp && ox <= msx && (ox + ow) >= msx && oy <= msy && (oy + oh) >= msy) {
+		nmx = MIN(msx + c->x - ox, c->x + c->w - c->bw);
+		nmy = MIN(msy + c->y - oy, c->y + c->h - c->bw);
+		XWarpPointer(dpy, None, None, 0, 0, 0, 0, nmx - msx, nmy - msy);
 	}
 }
 
