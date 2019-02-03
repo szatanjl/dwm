@@ -118,6 +118,7 @@ typedef struct Client Client;
 struct Client {
 	char name[256];
 	float mina, maxa;
+	float cfact;
 	int x, y, w, h;
 	int sfx, sfy, sfw, sfh; /* stored float geometry, used on togglefloating */
 	int smx, smy, smw, smh; /* stored float geometry, used on unmaximize */
@@ -232,6 +233,7 @@ static void propertynotify(XEvent *e);
 static void quit(const Arg *arg);
 static Monitor *recttomon(int x, int y, int w, int h);
 static void removesystrayicon(Client *c);
+static void resetcfact(const Arg *arg);
 static void resize(Client *c, int x, int y, int w, int h, int interact);
 static void resizeclient(Client *c, int x, int y, int w, int h);
 static void resizemouse(const Arg *arg);
@@ -241,6 +243,7 @@ static void run(void);
 static void scan(void);
 static int sendevent(Window w, Atom proto, int m, long d0, long d1, long d2, long d3, long d4);
 static void sendmon(Client *c, Monitor *m);
+static void setcfact(const Arg *arg);
 static void setclientstate(Client *c, long state);
 static void setfocus(Client *c);
 static void setfullscreen(Client *c, int fullscreen);
@@ -1217,6 +1220,7 @@ manage(Window w, XWindowAttributes *wa)
 	c->w = c->oldw = wa->width;
 	c->h = c->oldh = wa->height;
 	c->oldbw = wa->border_width;
+	c->cfact = 1.0;
 
 	updatetitle(c);
 	if (XGetTransientForHint(dpy, w, &trans) && (t = wintoclient(trans))) {
@@ -1613,6 +1617,21 @@ removesystrayicon(Client *c)
 }
 
 void
+resetcfact(const Arg *arg)
+{
+	Client *c;
+
+	if (!selmon->lt[selmon->sellt]->arrange)
+		return;
+
+	for(c = selmon->clients; c != NULL; c = c->next)
+		if (ISVISIBLE(c) && !c->isfloating)
+			c->cfact = 1.0;
+
+	arrange(selmon);
+}
+
+void
 resize(Client *c, int x, int y, int w, int h, int interact)
 {
 	if (applysizehints(c, &x, &y, &w, &h, interact))
@@ -1780,6 +1799,24 @@ sendmon(Client *c, Monitor *m)
 	attachstack(c);
 	focus(NULL);
 	arrange(NULL);
+}
+
+void
+setcfact(const Arg *arg)
+{
+	Client *c = selmon->sel;
+	float f;
+
+	if (!arg || !c || !selmon->lt[selmon->sellt]->arrange)
+		return;
+
+	if (arg->f == 0.0)
+		f = 1.0;
+	else
+		f = arg->f + c->cfact;
+
+	c->cfact = f;
+	arrange(selmon);
 }
 
 void
@@ -2054,9 +2091,15 @@ void
 tile(Monitor *m)
 {
 	unsigned int i, n, h, mw, my, ty, ns;
+	float mfacts = 0, sfacts = 0;
 	Client *c;
 
-	for (n = 0, c = nexttiled(m->clients); c; c = nexttiled(c->next), n++);
+	for (n = 0, c = nexttiled(m->clients); c; c = nexttiled(c->next), n++) {
+		if (n < m->nmaster)
+			mfacts += c->cfact;
+		else
+			sfacts += c->cfact;
+	}
 	if (n == 0)
 		return;
 
@@ -2069,13 +2112,15 @@ tile(Monitor *m)
 	}
 	for (i = 0, my = ty = gappx, c = nexttiled(m->clients); c; c = nexttiled(c->next), i++)
 		if (i < m->nmaster) {
-			h = (m->wh - my) / (MIN(n, m->nmaster) - i) - gappx;
+			h = (m->wh - my) * (c->cfact / mfacts) - gappx;
 			resize(c, m->wx + gappx, m->wy + my, mw - (2*c->bw) - gappx*(5-ns)/2, h - (2*c->bw), False);
 			my += HEIGHT(c) + gappx;
+			mfacts -= c->cfact;
 		} else {
-			h = (m->wh - ty) / (n - i) - gappx;
+			h = (m->wh - ty) * (c->cfact / sfacts) - gappx;
 			resize(c, m->wx + mw + gappx/ns, m->wy + ty, m->ww - mw - (2*c->bw) - gappx*(5-ns)/2, h - (2*c->bw), False);
 			ty += HEIGHT(c) + gappx;
+			sfacts -= c->cfact;
 		}
 }
 
