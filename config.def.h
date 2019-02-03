@@ -42,6 +42,9 @@ static const int decorhints  = 0;    /* 1 means respect decoration hints */
 static const int tiledraise  = 0;    /* 1 means raise tiled windows when focused */
 static const int restorefloat = 0;   /* 1 means restore window's last position after togglefloating */
 
+typedef void (*Attach)(Client *);
+static const Attach attachclient = attach;
+
 static const Layout layouts[] = {
 	/* symbol     arrange function */
 	{ "[]=",      tile },    /* first entry is default */
