@@ -33,6 +33,11 @@ static const char *colors[][3]      = {
 	[SystraySel]  = { col_gray3, col_gray1, col_gray2 },
 	[StatusNorm]  = { col_gray3, col_gray1, col_gray2 },
 	[StatusSel]   = { col_gray3, col_gray1, col_gray2 },
+	/* colors for status (\x01, \x02, ...) */
+	{ "#000000", "#ffff00", "#ff0000" },
+	{ "#000000", "#ffff00", "#ff0000" },
+	{ "#ffffff", "#ff0000", "#ff0000" },
+	{ "#ffffff", "#ff0000", "#ff0000" },
 };
 
 /* tagging */

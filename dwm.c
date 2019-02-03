@@ -88,7 +88,7 @@
 enum { CurNormal, CurResize, CurMove, CurLast }; /* cursor */
 enum { SchemeNorm, SchemeSel, TagNorm, TagSel, TagSelNorm, TagSelSel,
        LayoutNorm, LayoutSel, TitleNorm, TitleSel, SystrayNorm, SystraySel,
-       StatusNorm, StatusSel }; /* color schemes */
+       StatusNorm, StatusSel, StatusCol }; /* color schemes */
 enum { NetSupported, NetWMName, NetWMState, NetWMCheck,
        NetSystemTray, NetSystemTrayOP, NetSystemTrayOrientation, NetSystemTrayOrientationHorz,
        NetWMFullscreen, NetActiveWindow, NetWMWindowType,
@@ -818,6 +818,8 @@ drawbar(Monitor *m)
 	int boxw = drw->fonts->h / 6 + 2;
 	unsigned int i, occ = 0, urg = 0;
 	Client *c;
+	char *ts = stext, *tp = stext, ctmp;
+	char stexttmp[sizeof(stext)], *stt = stexttmp;
 
 	Clr *barscheme = scheme[m == selmon ? SchemeSel : SchemeNorm];
 	Clr *tagscheme = scheme[m == selmon ? TagSel : TagNorm];
@@ -830,8 +832,28 @@ drawbar(Monitor *m)
 	/* draw status first so it can be overdrawn by tags later */
 	if (statusonallmons || m == selmon) {
 		drw_setscheme(drw, statusscheme);
-		sw = TEXTW(stext) - lrpad + 2; /* 2px right padding */
-		drw_text(drw, m->ww - sw, 0, sw, bh, 0, stext, 0);
+
+		for (ts = stext; *ts != '\0'; ++ts)
+			if (*ts * 2 > LENGTH(colors) - StatusCol)
+				*stt++ = *ts;
+		*stt = '\0';
+
+		sw = TEXTW(stexttmp) - lrpad + 2; /* 2px right padding */
+
+		x = 0;
+		for (ts = tp = stext; ; ++ts) {
+			if (*ts * 2 > LENGTH(colors) - StatusCol)
+				continue;
+			ctmp = *ts;
+			*ts = '\0';
+			drw_text(drw, m->ww - sw + x, 0, sw - x, bh, 0, tp, 0);
+			x += TEXTW(tp) - lrpad;
+			if (ctmp == '\0')
+				break;
+			drw_setscheme(drw, scheme[StatusCol + 2 * ctmp - (m != selmon) - 1]);
+			*ts = ctmp;
+			tp = ts + 1;
+		}
 	}
 
 	if (systray && m == selmon) {
