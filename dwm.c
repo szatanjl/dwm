@@ -120,11 +120,12 @@ struct Client {
 	float mina, maxa;
 	int x, y, w, h;
 	int sfx, sfy, sfw, sfh; /* stored float geometry, used on togglefloating */
+	int smx, smy, smw, smh; /* stored float geometry, used on unmaximize */
 	int oldx, oldy, oldw, oldh;
 	int basew, baseh, incw, inch, maxw, maxh, minw, minh;
 	int bw, oldbw;
 	unsigned int tags;
-	int isfixed, isfloating, isurgent, neverfocus, oldstate, isfullscreen;
+	int ismax, isfixed, isfloating, isurgent, neverfocus, oldstate, isfullscreen;
 	Client *next;
 	Client *snext;
 	Monitor *mon;
@@ -219,6 +220,7 @@ static void killclient(const Arg *arg);
 static void manage(Window w, XWindowAttributes *wa);
 static void mappingnotify(XEvent *e);
 static void maprequest(XEvent *e);
+static void maximize(const Arg *arg);
 static void monocle(Monitor *m);
 static void motionnotify(XEvent *e);
 static void movemouse(const Arg *arg);
@@ -279,6 +281,7 @@ static int xerror(Display *dpy, XErrorEvent *ee);
 static int xerrordummy(Display *dpy, XErrorEvent *ee);
 static int xerrorstart(Display *dpy, XErrorEvent *ee);
 static void zoom(const Arg *arg);
+static void zoom_or_maximize(const Arg *arg);
 
 /* variables */
 static const char broken[] = "broken";
@@ -427,7 +430,7 @@ applysizehints(Client *c, int *x, int *y, int *w, int *h, int interact)
 		*h = bh;
 	if (*w < bh)
 		*w = bh;
-	if (resizehints || c->isfloating || !c->mon->lt[c->mon->sellt]->arrange) {
+	if (resizehints || (!c->ismax && (c->isfloating || !c->mon->lt[c->mon->sellt]->arrange))) {
 		/* see last two sentences in ICCCM 4.1.2.3 */
 		baseismin = c->basew == c->minw && c->baseh == c->minh;
 		if (!baseismin) { /* temporarily remove base dimensions */
@@ -700,7 +703,7 @@ configurerequest(XEvent *e)
 	if ((c = wintoclient(ev->window))) {
 		if (ev->value_mask & CWBorderWidth)
 			c->bw = ev->border_width;
-		else if (c->isfloating || !selmon->lt[selmon->sellt]->arrange) {
+		else if (!c->ismax && (c->isfloating || !selmon->lt[selmon->sellt]->arrange)) {
 			m = c->mon;
 			if (ev->value_mask & CWX) {
 				c->oldx = c->x;
@@ -1206,6 +1209,7 @@ manage(Window w, XWindowAttributes *wa)
 	c = ecalloc(1, sizeof(Client));
 	c->win = w;
 	/* geometry */
+	c->ismax = 0;
 	c->x = c->oldx = wa->x;
 	c->y = c->oldy = wa->y;
 	c->w = c->oldw = wa->width;
@@ -1239,10 +1243,10 @@ manage(Window w, XWindowAttributes *wa)
 	updatesizehints(c);
 	updatewmhints(c);
 	updatemotifhints(c);
-	c->sfx = c->x;
-	c->sfy = c->y;
-	c->sfw = c->w;
-	c->sfh = c->h;
+	c->sfx = c->smx = c->x;
+	c->sfy = c->smy = c->y;
+	c->sfw = c->smw = c->w;
+	c->sfh = c->smh = c->h;
 	XSelectInput(dpy, w, EnterWindowMask|FocusChangeMask|PropertyChangeMask|StructureNotifyMask);
 	grabbuttons(c, 0);
 	if (!c->isfloating)
@@ -1292,6 +1296,32 @@ maprequest(XEvent *e)
 		return;
 	if (!wintoclient(ev->window))
 		manage(ev->window, &wa);
+}
+
+void
+maximize(const Arg *arg)
+{
+	Client *c = selmon->sel;
+
+	/* only floating windows can be maximized */
+	if (!c || (selmon->lt[selmon->sellt]->arrange && !c->isfloating))
+		return;
+
+	if (c->ismax) {
+		/* restore last known float dimensions */
+		c->ismax = 0;
+		resize(c, c->smx, c->smy, c->smw, c->smh, False);
+	} else {
+		/* save last known float dimentions */
+		c->smx = c->x;
+		c->smy = c->y;
+		c->smw = c->w;
+		c->smh = c->h;
+
+		c->ismax = 1;
+		resize(c, selmon->wx, selmon->wy, selmon->ww - 2 * c->bw,
+		       selmon->wh - 2 * c->bw, False);
+	}
 }
 
 void
@@ -2520,6 +2550,19 @@ zoom(const Arg *arg)
 		if (!c || !(c = nexttiled(c->next)))
 			return;
 	pop(c);
+}
+
+void
+zoom_or_maximize(const Arg *arg)
+{
+	if (selmon && selmon->sel) {
+		if (selmon->lt[selmon->sellt]->arrange &&
+		    !selmon->sel->isfloating) {
+			zoom(NULL);
+		} else {
+			maximize(NULL);
+		}
+	}
 }
 
 int
