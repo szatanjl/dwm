@@ -324,6 +324,9 @@ static Monitor *mons, *selmon;
 static Window root, wmcheckwin;
 static Systray *systray = NULL;
 
+static char mon_str[32];
+static char win_str[32];
+
 /* configuration, allows nested code to access above variables */
 #include "config.h"
 
@@ -2056,8 +2059,9 @@ sigchld(int unused)
 void
 spawn(const Arg *arg)
 {
-	if (arg->v == dmenucmd)
-		dmenumon[0] = '0' + selmon->num;
+	sprintf(mon_str, "%d", selmon ? selmon->num : 0);
+	sprintf(win_str, "%lu", (selmon && selmon->sel) ? selmon->sel->win : root);
+
 	if (fork() == 0) {
 		if (dpy)
 			close(ConnectionNumber(dpy));
