@@ -782,6 +782,8 @@ destroynotify(XEvent *e)
 		removesystrayicon(c);
 		updatesystray();
 	}
+
+	focus(NULL);
 }
 
 void
@@ -2251,6 +2253,8 @@ unmapnotify(XEvent *e)
 		XMapRaised(dpy, c->win);
 		updatesystray();
 	}
+
+	focus(NULL);
 }
 
 void
