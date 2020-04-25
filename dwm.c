@@ -163,6 +163,7 @@ static void detachstack(Client *c);
 static Monitor *dirtomon(int dir);
 static void drawbar(Monitor *m);
 static void drawbars(void);
+static int drawstatus(Monitor *m, Clr *scm);
 static void enternotify(XEvent *e);
 static void expose(XEvent *e);
 static void focus(Client *c);
@@ -236,7 +237,7 @@ static void zoom(const Arg *arg);
 
 /* variables */
 static const char broken[] = "broken";
-static char stext[256];
+static char stext[2560];
 static int screen;
 static int sw, sh;           /* X display screen geometry width, height */
 static int bh, blw = 0;      /* bar geometry */
@@ -703,9 +704,13 @@ drawbar(Monitor *m)
 
 	/* draw status first so it can be overdrawn by tags later */
 	if (statusonallmons || m == selmon) {
-		drw_setscheme(drw, scheme[SchemeNorm]);
-		sw = TEXTW(stext) - lrpad + 2; /* 2px right padding */
-		drw_text(drw, m->ww - sw, 0, sw, bh, 0, stext, 0);
+		if (!statuscolor) {
+			drw_setscheme(drw, scheme[SchemeNorm]);
+			sw = TEXTW(stext) - lrpad + 2; /* 2px right padding */
+			drw_text(drw, m->ww - sw, 0, sw, bh, 0, stext, 0);
+		} else {
+			sw = drawstatus(m, scheme[SchemeNorm]);
+		}
 	}
 
 	for (c = m->clients; c; c = c->next) {
@@ -749,6 +754,77 @@ drawbars(void)
 
 	for (m = mons; m; m = m->next)
 		drawbar(m);
+}
+
+int
+drawstatus(Monitor *m, Clr *scm)
+{
+	Visual *vis = DefaultVisual(drw->dpy, drw->screen);
+	Colormap cmap = DefaultColormap(drw->dpy, drw->screen);
+	Clr clr[] = { scm[0], scm[1] }, *pclr = &clr[0];
+	int x = 0, sw = 2;
+	char *s, *se, tmp;
+	int conf;
+
+	conf = 0;
+	s = se = stext;
+	while (*se != '\0' && *s != '\0') {
+		se = s;
+		if (conf && *s == '@') {
+			se++;
+			conf = 0;
+		}
+		while (*se != '\0' && *se != '@')
+			se++;
+		if (!conf) {
+			tmp = *se;
+			*se = '\0';
+			sw += TEXTW(s) - lrpad;
+			*se = tmp;
+		}
+		s = se + 1;
+		conf = !conf;
+	}
+
+	conf = 0;
+	s = se = stext;
+	while (*se != '\0' && *s != '\0') {
+		se = s;
+		if (conf && *s == '@') {
+			se++;
+			conf = 0;
+		}
+		while (*se != '\0' && *se != '@')
+			se++;
+		if (conf) {
+			for (; s < se; s++) {
+				if (*s == 'F') {
+					clr[ColFg] = scm[ColFg];
+					pclr = &clr[ColFg];
+				} else if (*s == 'B') {
+					clr[ColBg] = scm[ColBg];
+					pclr = &clr[ColBg];
+				} else if (*s == '#' && s + 6 < se) {
+					tmp = s[7];
+					s[7] = '\0';
+					XftColorAllocName(drw->dpy, vis, cmap, s, pclr);
+					s[7] = tmp;
+					s += 6;
+				}
+			}
+		} else {
+			tmp = *se;
+			*se = '\0';
+			drw_setscheme(drw, clr);
+			drw_text(drw, m->ww - sw + x, 0, sw - x, bh, 0, s, 0);
+			x += TEXTW(s) - lrpad;
+			*se = tmp;
+		}
+		s = se + 1;
+		conf = !conf;
+	}
+
+	return sw;
 }
 
 void
