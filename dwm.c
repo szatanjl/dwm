@@ -86,7 +86,7 @@
 
 /* enums */
 enum { CurNormal, CurResize, CurMove, CurLast }; /* cursor */
-enum { SchemeNorm, SchemeSel }; /* color schemes */
+enum { SchemeNorm, SchemeSel, SchemeNormI, SchemeSelI }; /* color schemes */
 enum { NetSupported, NetWMName, NetWMState, NetWMCheck,
        NetSystemTray, NetSystemTrayOP, NetSystemTrayOrientation, NetSystemTrayOrientationHorz,
        NetWMFullscreen, NetWMModal, NetActiveWindow, NetWMWindowType,
@@ -922,14 +922,17 @@ drawbar(Monitor *m)
 	unsigned int i, occ = 0, urg = 0;
 	Client *c;
 
+	Clr *scmnorm = scheme[m == selmon ? SchemeNorm : SchemeNormI];
+	Clr *scmsel = scheme[m == selmon ? SchemeSel : SchemeSelI];
+
 	/* draw status first so it can be overdrawn by tags later */
 	if (statusonallmons || m == selmon) {
 		if (!statuscolor) {
-			drw_setscheme(drw, scheme[SchemeNorm]);
+			drw_setscheme(drw, scmnorm);
 			sw = TEXTW(stext) - lrpad + 2; /* 2px right padding */
 			drw_text(drw, m->ww - sw, 0, sw, bh, 0, stext, 0);
 		} else {
-			sw = drawstatus(m, scheme[SchemeNorm]);
+			sw = drawstatus(m, scmnorm);
 		}
 	}
 
@@ -940,13 +943,13 @@ drawbar(Monitor *m)
 		stw = stw > 0 ? stw : 1;
 
 		XMoveResizeWindow(dpy, systray->win, m->wx + m->ww - sw - stw, m->by, stw, bh);
-		XSetForeground(dpy, drw->gc, scheme[SchemeNorm][ColBg].pixel);
+		XSetForeground(dpy, drw->gc, scmnorm[ColBg].pixel);
 		XFillRectangle(dpy, systray->win, drw->gc, 0, 0, stw, bh);
 		XMapWindow(dpy, systray->win);
 
 		x = lrpad / 2;
 		for (c = systray->icons; c; c = c->next) {
-			XSetWindowAttributes wa = { .background_pixel = scheme[SchemeNorm][ColBg].pixel };
+			XSetWindowAttributes wa = { .background_pixel = scmnorm[ColBg].pixel };
 			XChangeWindowAttributes(dpy, c->win, CWBackPixel, &wa);
 			XMoveResizeWindow(dpy, c->win, x, 0, c->w, c->h);
 			XMapRaised(dpy, c->win);
@@ -962,7 +965,7 @@ drawbar(Monitor *m)
 	x = 0;
 	for (i = 0; i < LENGTH(tags); i++) {
 		w = TEXTW(tags[i]);
-		drw_setscheme(drw, scheme[m->tagset[m->seltags] & 1 << i ? SchemeSel : SchemeNorm]);
+		drw_setscheme(drw, (m->tagset[m->seltags] & (1 << i)) ? scmsel : scmnorm);
 		drw_text(drw, x, 0, w, bh, lrpad / 2, tags[i], urg & 1 << i);
 		if (occ & 1 << i)
 			drw_rect(drw, x + boxs, boxs, boxw, boxw,
@@ -971,17 +974,15 @@ drawbar(Monitor *m)
 		x += w;
 	}
 	w = blw = TEXTW(m->ltsymbol);
-	drw_setscheme(drw, scheme[SchemeNorm]);
+	drw_setscheme(drw, scmnorm);
 	x = drw_text(drw, x, 0, w, bh, lrpad / 2, m->ltsymbol, 0);
 
 	if ((w = m->ww - sw - stw - x) > bh) {
 		if (m->sel) {
-			drw_setscheme(drw, scheme[m == selmon ? SchemeSel : SchemeNorm]);
 			drw_text(drw, x, 0, w, bh, lrpad / 2, m->sel->name, 0);
 			if (m->sel->isfloating)
 				drw_rect(drw, x + boxs, boxs, boxw, boxw, m->sel->isfixed, 0);
 		} else {
-			drw_setscheme(drw, scheme[SchemeNorm]);
 			drw_rect(drw, x, 0, w, bh, 1, 1);
 		}
 	}
