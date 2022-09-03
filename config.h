@@ -109,6 +109,15 @@ static Key keys[] = {
 	{ 0,             XF86XK_AudioPlay,         CMD("music", "play") },
 	{ 0,             XF86XK_AudioNext,         CMD("music", "next") },
 
+	{ MODKEY,                       XK_F1,     CMD("setup-screen", "1") },
+	{ MODKEY|ShiftMask,             XK_F1,     CMD("setup-screen", "1", "alt") },
+	{ MODKEY,                       XK_F2,     CMD("setup-screen", "2") },
+	{ MODKEY|ShiftMask,             XK_F2,     CMD("setup-screen", "2", "alt") },
+	{ MODKEY,                       XK_F3,     CMD("setup-screen", "3") },
+	{ MODKEY|ShiftMask,             XK_F3,     CMD("setup-screen", "3", "alt") },
+	{ MODKEY,                       XK_F4,     CMD("setup-screen", "4") },
+	{ MODKEY|ShiftMask,             XK_F4,     CMD("setup-screen", "4", "alt") },
+
 	{ MODKEY|ShiftMask,             XK_c,      killclient,     {0} },
 	{ MODKEY,                       XK_Return, zoom_or_maximize, {0} },
 	{ MODKEY|ShiftMask,             XK_space,  togglefloating, {0} },
