@@ -11,7 +11,6 @@ static const int statusonallmons    = 1;        /* 0 means only on selected moni
 static const int statuscolor        = 1;        /* 1 means enable colors in status */
 static const int showsystray        = 1;        /* 0 means no systray */
 static const char *fonts[]          = {
-	"DejaVuSansMono Nerd Font:pixelsize=16:antialias=true:autohint=true",
 	"monospace:pixelsize=16:antialias=true:autohint=true",
 };
 static const char col_fgn[]         = "#d3dae3";
