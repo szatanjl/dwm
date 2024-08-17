@@ -92,9 +92,7 @@ static Key keys[] = {
 	{ MODKEY|ControlMask,           XK_l,      CMD("screenlock") },
 	{ MODKEY|ShiftMask,             XK_Return, CMD("terminal") },
 
-	{ 0,                            XK_Print,  CMD("screenshot") },
-	{ MODKEY,                       XK_Print,  CMD("screenshot", "monitor", mon_str) },
-	{ ShiftMask,                    XK_Print,  CMD("screenshot", "window", win_str) },
+	{ 0,                            XK_Print,  CMD("screenshot", mon_str, win_str) },
 	{ ControlMask,                  XK_Print,  CMD("screenshot", "select") },
 
 	{ 0,             XF86XK_Sleep,             CMD("quit", "suspend") },
