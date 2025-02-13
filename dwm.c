@@ -598,7 +598,8 @@ buttonpress(XEvent *e)
 		focus(NULL);
 	}
 	if (ev->window == selmon->barwin) {
-		i = x = 0;
+		i = 0;
+		x = lrpad / 2;
 		do
 			x += TEXTW(tags[i]);
 		while (ev->x >= x && ++i < LENGTH(tags));
@@ -929,7 +930,7 @@ drawbar(Monitor *m)
 	if (statusonallmons || m == selmon) {
 		if (!statuscolor) {
 			drw_setscheme(drw, scmnorm);
-			sw = TEXTW(stext) - lrpad + 2; /* 2px right padding */
+			sw = TEXTW(stext) - lrpad / 2;
 			drw_text(drw, m->ww - sw, 0, sw, bh, 0, stext, 0);
 		} else {
 			sw = drawstatus(m, scmnorm);
@@ -962,13 +963,14 @@ drawbar(Monitor *m)
 		if (c->isurgent)
 			urg |= c->tags;
 	}
-	x = 0;
+	drw_rect(drw, 0, 0, lrpad / 2, bh, 1, 1);
+	x = lrpad / 2;
 	for (i = 0; i < LENGTH(tags); i++) {
 		w = TEXTW(tags[i]);
 		drw_setscheme(drw, (m->tagset[m->seltags] & (1 << i)) ? scmsel : scmnorm);
 		drw_text(drw, x, 0, w, bh, lrpad / 2, tags[i], urg & 1 << i);
 		if (occ & 1 << i)
-			drw_rect(drw, x + boxs, boxs, boxw, boxw,
+			drw_rect(drw, x + boxs, boxs + 2, boxw, boxw,
 				m == selmon && selmon->sel && selmon->sel->tags & 1 << i,
 				urg & 1 << i);
 		x += w;
@@ -981,7 +983,7 @@ drawbar(Monitor *m)
 		if (m->sel) {
 			drw_text(drw, x, 0, w, bh, lrpad / 2, m->sel->name, 0);
 			if (m->sel->isfloating)
-				drw_rect(drw, x + boxs, boxs, boxw, boxw, m->sel->isfixed, 0);
+				drw_rect(drw, x + boxs, boxs + 2, boxw, boxw, m->sel->isfixed, 0);
 		} else {
 			drw_rect(drw, x, 0, w, bh, 1, 1);
 		}
@@ -1005,7 +1007,7 @@ drawstatus(Monitor *m, Clr *scm)
 	Visual *vis = DefaultVisual(drw->dpy, drw->screen);
 	Colormap cmap = DefaultColormap(drw->dpy, drw->screen);
 	Clr clr[] = { scm[0], scm[1] }, *pclr = &clr[0];
-	int x = 0, sw = 2;
+	int x = 0, sw = lrpad / 2;
 	char *s, *se, tmp;
 	int conf;
 
@@ -2105,7 +2107,7 @@ setup(void)
 	if (!drw_fontset_create(drw, fonts, LENGTH(fonts)))
 		die("no fonts could be loaded.");
 	lrpad = drw->fonts->h;
-	bh = drw->fonts->h + 2;
+	bh = drw->fonts->h + 6;
 	updategeom();
 	cl = (Clientlist *)ecalloc(1, sizeof(Clientlist));
 	/* init atoms */
